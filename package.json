@@ -1,0 +1,9 @@
+{
+  "name": "gitgitgadget-github-app",
+  "devDependencies": {
+    "eslint": "^8.34.0"
+  },
+  "scripts": {
+    "lint": "eslint -c .eslintrc.json '**/*.js'"
+  }
+}
