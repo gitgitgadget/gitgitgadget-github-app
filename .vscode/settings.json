@@ -5,5 +5,9 @@
     "debug.internalConsoleOptions": "neverOpen",
     "eslint.workingDirectories": [
         "GitGitGadget"
+    ],
+    "cSpell.words": [
+        "dscho",
+        "gitgitgadget"
     ]
 }
