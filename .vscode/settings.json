@@ -4,7 +4,8 @@
     "azureFunctions.projectRuntime": "~4",
     "debug.internalConsoleOptions": "neverOpen",
     "eslint.workingDirectories": [
-        "GitGitGadget"
+        "GitGitGadget",
+        "__tests__"
     ],
     "cSpell.words": [
         "dscho",
