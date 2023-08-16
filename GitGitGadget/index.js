@@ -5,7 +5,7 @@
  * pure Javascript and keep it as simple as possible.
  *
  * Note: while the Azure Function Runtime v1 supported GitHub webhooks natively,
- * via the "webHookType", we want to use v2, so we have to do the payload
+ * via the "webHookType", starting with v2, we have to do the payload
  * validation "by hand".
  */
 const crypto = require('crypto');
