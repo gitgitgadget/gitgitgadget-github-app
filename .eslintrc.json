@@ -1,0 +1,20 @@
+{
+  "env": {
+    "node": true,
+    "es6": true,
+    "jest/globals": true
+  },
+  "extends": "eslint:recommended",
+  "parserOptions": {
+    "ecmaVersion": 12,
+    "sourceType": "module"
+  },
+  "plugins": [
+    "jest"
+  ],
+  "root": true,
+  "rules": {
+    "indent": ["error", 4],
+    "no-trailing-spaces": "error"
+  }
+}

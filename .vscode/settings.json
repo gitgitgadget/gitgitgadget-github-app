@@ -2,5 +2,8 @@
     "azureFunctions.deploySubpath": ".",
     "azureFunctions.projectLanguage": "JavaScript",
     "azureFunctions.projectRuntime": "~4",
-    "debug.internalConsoleOptions": "neverOpen"
+    "debug.internalConsoleOptions": "neverOpen",
+    "eslint.workingDirectories": [
+        "GitGitGadget"
+    ]
 }
