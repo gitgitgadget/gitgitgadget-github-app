@@ -38,10 +38,10 @@ test('reject requests other than webhook payloads', async () => {
     context.req.headers['content-type'] = 'application/json'
     await expectInvalidWebhook('Missing X-Hub-Signature')
 
-    context.req.headers['x-hub-signature'] = 'invalid'
+    context.req.headers['x-hub-signature-256'] = 'invalid'
     await expectInvalidWebhook('Unexpected X-Hub-Signature format: invalid')
 
-    context.req.headers['x-hub-signature'] = 'sha1=incorrect'
+    context.req.headers['x-hub-signature-256'] = 'sha256=incorrect'
     context.req.rawBody = '# empty'
     await expectInvalidWebhook('Incorrect X-Hub-Signature')
 })

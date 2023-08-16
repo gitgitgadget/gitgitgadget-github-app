@@ -19,16 +19,16 @@ const validateGitHubWebHook = (context) => {
     if (context.req.headers['content-type'] !== 'application/json') {
         throw new Error('Unexpected content type: ' + context.req.headers['content-type']);
     }
-    const signature = context.req.headers['x-hub-signature'];
+    const signature = context.req.headers['x-hub-signature-256'];
     if (!signature) {
         throw new Error('Missing X-Hub-Signature');
     }
-    const sha1 = signature.match(/^sha1=(.*)/);
-    if (!sha1) {
+    const sha256 = signature.match(/^sha256=(.*)/);
+    if (!sha256) {
         throw new Error('Unexpected X-Hub-Signature format: ' + signature);
     }
-    const computed = crypto.createHmac('sha1', secret).update(context.req.rawBody).digest('hex');
-    if (sha1[1] !== computed) {
+    const computed = crypto.createHmac('sha256', secret).update(context.req.rawBody).digest('hex');
+    if (sha256[1] !== computed) {
         throw new Error('Incorrect X-Hub-Signature');
     }
 }
