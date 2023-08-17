@@ -3,6 +3,10 @@ const crypto = require('crypto')
 const stream = require('stream')
 const https = require('https')
 
+afterEach(() => {
+    jest.clearAllMocks();
+})
+
 process.env['GITHUB_WEBHOOK_SECRET'] = 'for-testing'
 process.env['GITGITGADGET_TRIGGER_TOKEN'] = 'token-for-testing'
 
@@ -84,8 +88,12 @@ const makeContext = (body, headers) => {
     }
 }
 
-const testIssueComment = (comment, fn) => {
-    const repoOwner = 'gitgitgadget'
+const testIssueComment = (comment, repoOwner, fn) => {
+    if (!fn) {
+        fn = repoOwner
+        repoOwner = undefined
+    }
+    repoOwner ||= 'gitgitgadget'
     const number = 0x70756c6c
     const context = makeContext({
         action: 'created',
@@ -139,4 +147,14 @@ testIssueComment('/test', async (context) => {
         parameters: '{"pr.comment.id":27988538471837300}'
     })
     expect(mockRequest.end).toHaveBeenCalledTimes(1)
+})
+
+testIssueComment('/verify-repository', 'nope', (context) => {
+    expect(context.done).toHaveBeenCalledTimes(1)
+    expect(context.res).toEqual({
+        body: 'Refusing to work on a repository other than gitgitgadget/git or git/git',
+        'status': 403,
+    })
+    expect(mockRequest.write).not.toHaveBeenCalled()
+    expect(mockRequest.end).not.toHaveBeenCalled()
 })
