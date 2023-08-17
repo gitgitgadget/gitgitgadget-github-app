@@ -73,7 +73,7 @@ As a last step, the repository was pushed, triggering the deployment to the Azur
 
 ### The GitHub App
 
-Finally, the existing GitHub App's webhook URL was redirected to the new one. If there had not been an existing GitHub App, [a new GitHub App would have been registered](https://github.com/settings/apps/new) with the repository URL on GitHub as homepage URL.
+Finally, the existing GitHub App's webhook URL was redirected to the new one. If there had not been an existing GitHub App, [a new GitHub App would have been registered](https://github.com/settings/apps/new) with https://github.com/gitgitgadget as homepage URL.
 
 As Webhook URL, the URL of the Azure Function was used, which can be copied in the "Functions" tab of the Azure Function. It looks similar to this: https://my-github-app.azurewebsites.net/api/MyGitHubApp
 
