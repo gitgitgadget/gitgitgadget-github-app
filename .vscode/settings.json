@@ -10,5 +10,8 @@
     "cSpell.words": [
         "dscho",
         "gitgitgadget"
+    ],
+    "cSpell.ignoreRegExpList": [
+        "AZURE_FUNCTIONAPP_PUBLISH_PROFILE"
     ]
 }
