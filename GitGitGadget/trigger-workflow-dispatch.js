@@ -1,0 +1,54 @@
+const { gitHubAPIRequest } = require('./github-api-request')
+const { gitHubAPIRequestAsApp } = require('./github-api-request-as-app')
+
+const sleep = async (milliseconds) => {
+    return new Promise((resolve) => {
+        setTimeout(resolve, milliseconds)
+    })
+}
+
+const getActorForToken = async (context, token) => {
+    try {
+        const { login } = await gitHubAPIRequest(context, token, 'GET', '/user')
+        return login
+    } catch (e) {
+        if (e.statusCode !== 403 || e.json?.message !== 'Resource not accessible by integration') throw e
+        const answer = await gitHubAPIRequestAsApp(context, 'GET', '/app')
+        return `${answer.slug}[bot]`
+    }
+}
+
+const waitForWorkflowRun = async (context, token, owner, repo, workflow_id, after, actor) => {
+    if (!actor) actor = await getActorForToken(context, token)
+    let counter = 0
+    for (;;) {
+        const res = await gitHubAPIRequest(
+            context,
+            token,
+            'GET',
+            `/repos/${owner}/${repo}/actions/runs?actor=${actor}&event=workflow_dispatch&created=>${after}`
+        )
+        const filtered = res.workflow_runs.filter(e => e.path === `.github/workflows/${workflow_id}`)
+        if (filtered.length > 0) return filtered
+        if (counter++ > 30) throw new Error(`Times out waiting for workflow?`)
+        await sleep(1000)
+    }
+}
+
+const triggerWorkflowDispatch = async (context, token, owner, repo, workflow_id, ref, inputs) => {
+    const { headers: { date } } = await gitHubAPIRequest(
+        context,
+        token,
+        'POST',
+        `/repos/${owner}/${repo}/actions/workflows/${workflow_id}/dispatches`,
+        { ref, inputs }
+    )
+
+    const runs = await waitForWorkflowRun(context, token, owner, repo, workflow_id, new Date(date).toISOString())
+    return runs[0]
+}
+
+module.exports = {
+    triggerWorkflowDispatch,
+    waitForWorkflowRun
+}
