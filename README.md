@@ -21,7 +21,7 @@ Instead of pushing the code to Azure all the time, waiting until it is deployed,
 
 To this end, [install the Azure Functions Core Tools (for performance, use Linux)](https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-local?tabs=v4%2Clinux%2Ccsharp%2Cportal%2Cbash#install-the-azure-functions-core-tools, e.g. via [WSL](https://learn.microsoft.com/en-us/windows/wsl/)).
 
-Then, configure [the `GITHUB_WEBHOOK_SECRET` variable](#some-environment-variables) locally, via [a `local.settings.json` file](https://learn.microsoft.com/en-us/azure/azure-functions/functions-develop-local#local-settings-file). The contents would look like this:
+Then, configure [the `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` and `GITHUB_WEBHOOK_SECRET` variables](#some-environment-variables) locally, via [a `local.settings.json` file](https://learn.microsoft.com/en-us/azure/azure-functions/functions-develop-local#local-settings-file). The contents would look like this:
 
 ```json
 {
@@ -29,6 +29,8 @@ Then, configure [the `GITHUB_WEBHOOK_SECRET` variable](#some-environment-variabl
   "Values": {
     "FUNCTIONS_WORKER_RUNTIME": "node",
     "AzureWebJobsStorage": "<storage-key>",
+    "GITHUB_APP_ID": "<app-id>",
+    "GITHUB_APP_PRIVATE_KEY": "<private-key>",
     "GITHUB_WEBHOOK_SECRET": "<webhook-secret>"
   },
   "Host": {
@@ -60,6 +62,8 @@ After the deployment succeeded, in the "Overview" tab, there is a "Get publish p
 A few environment variables will have to be configured for use with the Azure Function. This can be done on the "Configuration" tab, which is in the "Settings" group.
 
 Concretely, the environment variables `GITHUB_WEBHOOK_SECRET` and `GITGITGADGET_TRIGGER_TOKEN` (a Personal Access Token to trigger the Azure Pipelines) need to be set. For the first, a generated random string was used. The second one was [created](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=Windows#create-a-pat) scoped to the Azure DevOps project `gitgitgadget` with the Build (read & execute) permissions.
+
+Also, the `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` variables are needed in order to trigger GitHub workflow runs. These were obtained as part of registering the GitHub App.
 
 ### The repository
 
