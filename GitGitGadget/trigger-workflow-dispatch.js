@@ -36,6 +36,14 @@ const waitForWorkflowRun = async (context, token, owner, repo, workflow_id, afte
 }
 
 const triggerWorkflowDispatch = async (context, token, owner, repo, workflow_id, ref, inputs) => {
+    if (token === undefined) {
+        const { getInstallationIdForRepo } = require('./get-installation-id-for-repo')
+        const installationID = await getInstallationIdForRepo(context, owner, repo)
+
+        const { getInstallationAccessToken } = require('./get-installation-access-token')
+        token = await getInstallationAccessToken(context, installationID)
+    }
+
     const { headers: { date } } = await gitHubAPIRequest(
         context,
         token,
