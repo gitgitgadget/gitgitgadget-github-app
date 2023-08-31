@@ -12,6 +12,8 @@ const { validateGitHubWebHook } = require('./validate-github-webhook');
 
 const { triggerAzurePipeline } = require('./trigger-azure-pipeline');
 
+const { triggerWorkflowDispatch } = require('./trigger-workflow-dispatch')
+
 module.exports = async (context, req) => {
     try {
         validateGitHubWebHook(context);
@@ -55,6 +57,22 @@ module.exports = async (context, req) => {
             context.res = {
                 body: `Ignored event type: ${eventType}`,
             };
+        } else if (eventType === 'push') {
+            if (req.body.repository.full_name !== 'git/git') {
+                context.res = { body: `Ignoring pushes to ${req.body.repository.full_name}` }
+            } else {
+                const run = await triggerWorkflowDispatch(
+                    context,
+                    undefined,
+                    'gitgitgadget',
+                    'gitgitgadget-workflows',
+                    'sync-ref.yml',
+                    'main', {
+                        ref: req.body.ref
+                    }
+                )
+                context.res = { body: `push(${req.body.ref}): triggered ${run.html_url}` }
+            }
         } else if (eventType === 'issue_comment') {
             const triggerToken = process.env['GITGITGADGET_TRIGGER_TOKEN'];
             if (!triggerToken) {
