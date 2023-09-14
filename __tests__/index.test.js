@@ -1,3 +1,14 @@
+const mockTriggerWorkflowDispatch = jest.fn(async (_context, _token, owner, repo, workflow_id, ref, inputs) => {
+    expect(`${owner}/${repo}`).toEqual('gitgitgadget/gitgitgadget-workflows')
+    expect(workflow_id).toEqual('sync-ref.yml')
+    expect(ref).toEqual('main')
+    expect(inputs).toEqual({ ref: 'refs/heads/next' })
+    return { html_url: '<the URL to the workflow run>'}
+})
+jest.mock('../GitGitGadget/trigger-workflow-dispatch', () => ({
+    triggerWorkflowDispatch: mockTriggerWorkflowDispatch
+}))
+
 const index = require('../GitGitGadget/index')
 const crypto = require('crypto')
 const stream = require('stream')
@@ -157,4 +168,46 @@ testIssueComment('/verify-repository', 'nope', (context) => {
     })
     expect(mockRequest.write).not.toHaveBeenCalled()
     expect(mockRequest.end).not.toHaveBeenCalled()
+})
+
+const testWebhookPayload = (testLabel, gitHubEvent, payload, fn) => {
+    const context = makeContext(payload, {
+        'x-github-event': gitHubEvent
+    })
+
+    test(testLabel, async () => {
+        try {
+            expect(await index(context, context.req)).toBeUndefined()
+            await fn(context)
+            expect(context.done).toHaveBeenCalledTimes(1)
+        } catch (e) {
+            context.log.mock.calls.forEach(e => console.log(e[0]))
+            throw e;
+        }
+    })
+}
+
+testWebhookPayload('react to `next` being pushed to git/git', 'push', {
+    ref: 'refs/heads/next',
+    repository: {
+        full_name: 'git/git',
+        owner: {
+            login: 'git'
+        }
+    }
+}, (context) => {
+    expect(context.res).toEqual({
+        body: 'push(refs/heads/next): triggered <the URL to the workflow run>'
+    })
+    expect(mockTriggerWorkflowDispatch).toHaveBeenCalledTimes(1)
+    expect(mockTriggerWorkflowDispatch.mock.calls[0]).toEqual([
+        context,
+        undefined,
+        'gitgitgadget',
+        'gitgitgadget-workflows',
+        'sync-ref.yml',
+        'main', {
+            ref: 'refs/heads/next'
+        }
+    ])
 })

@@ -8,73 +8,11 @@
  * via the "webHookType", starting with v2, we have to do the payload
  * validation "by hand".
  */
-const crypto = require('crypto');
-const https = require('https');
+const { validateGitHubWebHook } = require('./validate-github-webhook');
 
-const validateGitHubWebHook = (context) => {
-    const secret = process.env['GITHUB_WEBHOOK_SECRET'];
-    if (!secret) {
-        throw new Error('Webhook secret not configured');
-    }
-    if (context.req.headers['content-type'] !== 'application/json') {
-        throw new Error('Unexpected content type: ' + context.req.headers['content-type']);
-    }
-    const signature = context.req.headers['x-hub-signature-256'];
-    if (!signature) {
-        throw new Error('Missing X-Hub-Signature');
-    }
-    const sha256 = signature.match(/^sha256=(.*)/);
-    if (!sha256) {
-        throw new Error('Unexpected X-Hub-Signature format: ' + signature);
-    }
-    const computed = crypto.createHmac('sha256', secret).update(context.req.rawBody).digest('hex');
-    if (sha256[1] !== computed) {
-        throw new Error('Incorrect X-Hub-Signature');
-    }
-}
+const { triggerAzurePipeline } = require('./trigger-azure-pipeline');
 
-const triggerAzurePipeline = async (token, organization, project, buildDefinitionId, sourceBranch, parameters) => {
-    const auth = Buffer.from('PAT:' + token).toString('base64');
-    const headers = {
-        'Accept': 'application/json; api-version=5.0-preview.5; excludeUrls=true',
-        'Authorization': 'Basic ' + auth,
-    };
-    const json = JSON.stringify({
-        'definition': { 'id': buildDefinitionId },
-        'sourceBranch': sourceBranch,
-        'parameters': JSON.stringify(parameters),
-    });
-    headers['Content-Type'] = 'application/json';
-    headers['Content-Length'] = Buffer.byteLength(json);
-
-    const requestOptions = {
-        host: 'dev.azure.com',
-        port: '443',
-        path: `/${organization}/${project}/_apis/build/builds?ignoreWarnings=false&api-version=5.0-preview.5`,
-        method: 'POST',
-        headers: headers
-    };
-
-    return new Promise((resolve, reject) => {
-        const handleResponse = (res) => {
-            res.setEncoding('utf8');
-            var response = '';
-            res.on('data', (chunk) => {
-                response += chunk;
-            });
-            res.on('end', () => {
-                resolve(JSON.parse(response));
-            });
-            res.on('error', (err) => {
-                reject(err);
-            })
-        };
-
-        const request = https.request(requestOptions, handleResponse);
-        request.write(json);
-        request.end();
-    });
-}
+const { triggerWorkflowDispatch } = require('./trigger-workflow-dispatch')
 
 module.exports = async (context, req) => {
     try {
@@ -119,6 +57,22 @@ module.exports = async (context, req) => {
             context.res = {
                 body: `Ignored event type: ${eventType}`,
             };
+        } else if (eventType === 'push') {
+            if (req.body.repository.full_name !== 'git/git') {
+                context.res = { body: `Ignoring pushes to ${req.body.repository.full_name}` }
+            } else {
+                const run = await triggerWorkflowDispatch(
+                    context,
+                    undefined,
+                    'gitgitgadget',
+                    'gitgitgadget-workflows',
+                    'sync-ref.yml',
+                    'main', {
+                        ref: req.body.ref
+                    }
+                )
+                context.res = { body: `push(${req.body.ref}): triggered ${run.html_url}` }
+            }
         } else if (eventType === 'issue_comment') {
             const triggerToken = process.env['GITGITGADGET_TRIGGER_TOKEN'];
             if (!triggerToken) {
