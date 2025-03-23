@@ -12,7 +12,9 @@ const { validateGitHubWebHook } = require('./validate-github-webhook');
 
 const { triggerAzurePipeline } = require('./trigger-azure-pipeline');
 
-const { triggerWorkflowDispatch } = require('./trigger-workflow-dispatch')
+const { triggerWorkflowDispatch } = require('./trigger-workflow-dispatch');
+
+const { isUserAuthorized } = require('./is-user-authorized');
 
 module.exports = async (context, req) => {
     try {
@@ -89,6 +91,24 @@ module.exports = async (context, req) => {
             /* GitGitGadget works on dscho/git only for testing */
             if (repositoryOwner === 'dscho' && comment.user.login !== 'dscho') {
                 throw new Error(`Ignoring comment from ${comment.user.login}`);
+            }
+
+            /* Only trigger the Pipeline for commands */
+            if (!comment.body || !comment.body.startsWith('/')) {
+                context.res = {
+                    body: `Not a command: '${comment.body}'`,
+                };
+                context.done();
+                return;
+            }
+
+            if (!(req.body.sender.site_admin || await isUserAuthorized(context, comment.sender.login))) {
+                context.res = {
+                    status: 403,
+                    body: `Commenter @{comment.sender.login} not authorized: ${comment.html_url}`,
+                };
+                context.done();
+                return;
             }
 
             /* Only trigger the Pipeline for valid commands */
