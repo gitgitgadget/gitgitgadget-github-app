@@ -1,5 +1,5 @@
 const mockTriggerWorkflowDispatch = jest.fn(async (_context, _token, owner, repo, workflow_id, ref, inputs) => {
-    expect(`${owner}/${repo}`).toEqual('gitgitgadget/gitgitgadget-workflows')
+    expect(`${owner}/${repo}`).toEqual('gitgitgadget-workflows/gitgitgadget-workflows')
     expect(workflow_id).toEqual('sync-ref.yml')
     expect(ref).toEqual('main')
     expect(inputs).toEqual({ ref: 'refs/heads/next' })
@@ -203,7 +203,7 @@ testWebhookPayload('react to `next` being pushed to git/git', 'push', {
     expect(mockTriggerWorkflowDispatch.mock.calls[0]).toEqual([
         context,
         undefined,
-        'gitgitgadget',
+        'gitgitgadget-workflows',
         'gitgitgadget-workflows',
         'sync-ref.yml',
         'main', {

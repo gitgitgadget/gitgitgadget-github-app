@@ -64,7 +64,7 @@ module.exports = async (context, req) => {
                 const run = await triggerWorkflowDispatch(
                     context,
                     undefined,
-                    'gitgitgadget',
+                    'gitgitgadget-workflows',
                     'gitgitgadget-workflows',
                     'sync-ref.yml',
                     'main', {
