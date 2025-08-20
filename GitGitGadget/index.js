@@ -12,7 +12,7 @@ const { validateGitHubWebHook } = require('./validate-github-webhook');
 
 const { triggerAzurePipeline } = require('./trigger-azure-pipeline');
 
-const { triggerWorkflowDispatch } = require('./trigger-workflow-dispatch')
+const { triggerWorkflowDispatch, listWorkflowRuns } = require('./trigger-workflow-dispatch')
 
 module.exports = async (context, req) => {
     try {
@@ -69,7 +69,16 @@ module.exports = async (context, req) => {
                         ref: req.body.ref
                     }
                 )
-                context.res = { body: `push(${req.body.ref}): triggered ${run.html_url}` }
+                const extra = []
+                if (req.body.ref === 'refs/heads/seen') {
+                    for (const workflow of ['update-prs.yml', 'update-mail-to-commit-notes.yml']) {
+                        if ((await listWorkflowRuns(...a, workflow, 'main', 'queued')).length === 0) {
+                            const run = await triggerWorkflowDispatch(...a, workflow, 'main')
+                            extra.push(` and ${run.html_url}`)
+                        }
+                    }
+                }
+                context.res = { body: `push(${req.body.ref}): triggered ${run.html_url}${extra.join('')}` }
             }
         } else if (eventType === 'issue_comment') {
             const triggerToken = process.env['GITGITGADGET_TRIGGER_TOKEN'];

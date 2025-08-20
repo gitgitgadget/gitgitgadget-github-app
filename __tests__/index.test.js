@@ -2,7 +2,17 @@ const mockTriggerWorkflowDispatch = jest.fn(async (_context, _token, _owner, _re
     return { html_url: `<the URL to the workflow ${workflow_id} run on ${ref} with inputs ${JSON.stringify(inputs)}>` }
 })
 jest.mock('../GitGitGadget/trigger-workflow-dispatch', () => ({
-    triggerWorkflowDispatch: mockTriggerWorkflowDispatch
+    triggerWorkflowDispatch: mockTriggerWorkflowDispatch,
+    listWorkflowRuns: jest.fn(async (_context, _token, _owner, _repo, workflow_id, branch, status) => {
+        if (workflow_id === 'update-prs.yml' && branch === 'main' && status === 'queued') {
+            // pretend that `update-prs` is clogged up, for whatever reason
+            return [
+                { id: 1, head_branch: 'main', status: 'queued', html_url: '<the URL to the workflow run>' },
+                { id: 2, head_branch: 'main', status: 'queued', html_url: '<another URL to the workflow run>' }
+            ]
+        }
+        return []
+    })
 }))
 
 const index = require('../GitGitGadget/index')
@@ -205,5 +215,44 @@ testWebhookPayload('react to `next` being pushed to git/git', 'push', {
         'main', {
             ref: 'refs/heads/next'
         }
+    ])
+})
+
+testWebhookPayload('react to `seen` being pushed to git/git', 'push', {
+    ref: 'refs/heads/seen',
+    repository: {
+        full_name: 'git/git',
+        owner: {
+            login: 'git'
+        }
+    }
+}, (context) => {
+    expect(context.res).toEqual({
+        body: [
+            'push(refs/heads/seen):',
+            'triggered <the URL to the workflow sync-ref.yml run on main with inputs {"ref":"refs/heads/seen"}>',
+            'and <the URL to the workflow update-mail-to-commit-notes.yml run on main with inputs undefined>'
+        ].join(' ')
+    })
+    // we expect `update-prs` _not_ to be triggered here because we pretend that it is already queued
+    expect(mockTriggerWorkflowDispatch).toHaveBeenCalledTimes(2)
+    expect(mockTriggerWorkflowDispatch.mock.calls[0]).toEqual([
+        context,
+        undefined,
+        'gitgitgadget-workflows',
+        'gitgitgadget-workflows',
+        'sync-ref.yml',
+        'main', {
+            ref: 'refs/heads/seen'
+        }
+    ])
+    expect(mockTriggerWorkflowDispatch.mock.calls[1]).toEqual([
+        context,
+        undefined,
+        'gitgitgadget-workflows',
+        'gitgitgadget-workflows',
+        'update-mail-to-commit-notes.yml',
+        'main',
+        undefined
     ])
 })
