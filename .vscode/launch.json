@@ -4,6 +4,7 @@
     {
       "type": "node",
       "request": "launch",
+      "console": "integratedTerminal",
       "name": "Debug Tests",
       "program": "${workspaceRoot}/node_modules/.bin/jest",
       "cwd": "${workspaceRoot}",
