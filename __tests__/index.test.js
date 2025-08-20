@@ -256,3 +256,30 @@ testWebhookPayload('react to `seen` being pushed to git/git', 'push', {
         undefined
     ])
 })
+
+testWebhookPayload('react to `lore-1` being pushed to https://github.com/gitgitgadget/git-mailing-list-mirror', 'push', {
+    ref: 'refs/heads/lore-1',
+    repository: {
+        full_name: 'gitgitgadget/git-mailing-list-mirror',
+        owner: {
+            login: 'gitgitgadget'
+        }
+    }
+}, (context) => {
+    expect(context.res).toEqual({
+        body: [
+            'push(refs/heads/lore-1 in gitgitgadget/git-mailing-list-mirror):',
+            'triggered <the URL to the workflow handle-new-mails.yml run on main with inputs undefined>'
+        ].join(' ')
+    })
+    expect(mockTriggerWorkflowDispatch).toHaveBeenCalledTimes(1)
+    expect(mockTriggerWorkflowDispatch.mock.calls[0]).toEqual([
+        context,
+        undefined,
+        'gitgitgadget-workflows',
+        'gitgitgadget-workflows',
+        'handle-new-mails.yml',
+        'main',
+        undefined
+    ])
+})

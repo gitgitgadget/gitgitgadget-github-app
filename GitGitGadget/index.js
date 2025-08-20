@@ -59,7 +59,21 @@ module.exports = async (context, req) => {
                 body: `Ignored event type: ${eventType}`,
             };
         } else if (eventType === 'push') {
-            if (req.body.repository.full_name !== 'git/git') {
+            if (req.body.repository.full_name ==='gitgitgadget/git-mailing-list-mirror') {
+                context.res = { body: `push(${req.body.ref} in ${req.body.repository.full_name}): ` }
+                if (req.body.ref === 'refs/heads/lore-1') {
+                    const queued = await listWorkflowRuns(...a, 'handle-new-mails.yml', 'queued')
+                    if (queued.length) {
+                        context.res.body += [
+                            `skip triggering handle-new-emails, ${queued} already queued:`,
+                            queued.map(e => `- ${e.html_url}`)
+                        ].join('\n')
+                    } else {
+                        const run = await triggerWorkflowDispatch(...a, 'handle-new-mails.yml', 'main')
+                        context.res.body += `triggered ${run.html_url}`
+                    }
+                } else context.res.body += `Ignoring non-default branches`
+            } else if (req.body.repository.full_name !== 'git/git') {
                 context.res = { body: `Ignoring pushes to ${req.body.repository.full_name}` }
             } else {
                 const run = await triggerWorkflowDispatch(
