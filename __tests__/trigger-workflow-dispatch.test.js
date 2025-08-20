@@ -16,11 +16,19 @@ const mockHTTPSRequest = jest.fn(async (_context, _hostname, method, requestPath
             ]
         }
     }
+    if (method === 'GET' && requestPath === '/repos/hello/world/actions/workflows/the-workflow.yml/runs?branch=main&status=queued') {
+        return {
+            workflow_runs: [
+                { id: 1, head_branch: 'main', status: 'queued' },
+                { id: 2, head_branch: 'main', status: 'queued' },
+            ]
+        }
+    }
     throw new Error(`Unexpected requestPath: ${method} '${requestPath}'`)
 })
 jest.mock('../GitGitGadget/https-request', () => { return { httpsRequest: mockHTTPSRequest } })
 
-const { triggerWorkflowDispatch } = require('../GitGitGadget/trigger-workflow-dispatch')
+const { triggerWorkflowDispatch, listWorkflowRuns } = require('../GitGitGadget/trigger-workflow-dispatch')
 
 const { generateKeyPairSync } = require('crypto')
 
@@ -44,4 +52,10 @@ test('trigger a workflow_dispatch event and wait for workflow run', async () => 
         path: '.github/workflows/the-workflow.yml',
         breadcrumb: true
     })
+})
+
+test('list workflow runs', async () => {
+    const context = {}
+    const runs = await listWorkflowRuns(context, 'my-token', 'hello', 'world', 'the-workflow.yml', 'main', 'queued')
+    expect(runs.length).toEqual(2)
 })

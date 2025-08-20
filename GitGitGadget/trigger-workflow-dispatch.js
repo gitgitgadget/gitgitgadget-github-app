@@ -56,7 +56,34 @@ const triggerWorkflowDispatch = async (context, token, owner, repo, workflow_id,
     return runs[0]
 }
 
+const listWorkflowRuns = async (context, token, owner, repo, workflow_id, branch, status) => {
+    if (token === undefined) {
+        const { getInstallationIdForRepo } = require('./get-installation-id-for-repo')
+        const installationID = await getInstallationIdForRepo(context, owner, repo)
+
+        const { getInstallationAccessToken } = require('./get-installation-access-token')
+        token = await getInstallationAccessToken(context, installationID)
+    }
+
+    const query = [
+        branch && `branch=${branch}`,
+        status && `status=${status}`,
+    ]
+        .filter((e) => e)
+        .map((e, i) => `${i === 0 ? '?' : '&'}${e}`)
+        .join('')
+
+    const result = await gitHubAPIRequest(
+        context,
+        token,
+        'GET',
+        `/repos/${owner}/${repo}/actions/workflows/${workflow_id}/runs${query}`,
+    )
+    return result.workflow_runs
+}
+
 module.exports = {
     triggerWorkflowDispatch,
-    waitForWorkflowRun
+    waitForWorkflowRun,
+    listWorkflowRuns,
 }
