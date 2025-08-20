@@ -44,6 +44,7 @@ module.exports = async (context, req) => {
             'git': 13,
             'gitgitgadget': 3,
         };
+        const a = [context, undefined, 'gitgitgadget-workflows', 'gitgitgadget-workflows']
 
         const eventType = context.req.headers['x-github-event'];
         context.log(`Got eventType: ${eventType}`);
@@ -62,10 +63,7 @@ module.exports = async (context, req) => {
                 context.res = { body: `Ignoring pushes to ${req.body.repository.full_name}` }
             } else {
                 const run = await triggerWorkflowDispatch(
-                    context,
-                    undefined,
-                    'gitgitgadget-workflows',
-                    'gitgitgadget-workflows',
+                    ...a,
                     'sync-ref.yml',
                     'main', {
                         ref: req.body.ref
