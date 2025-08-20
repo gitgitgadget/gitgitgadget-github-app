@@ -153,17 +153,10 @@ const testIssueComment = (comment, repoOwner, fn) => {
 testIssueComment('/test', async (context) => {
     expect(context.done).toHaveBeenCalledTimes(1)
     expect(context.res).toEqual({
-        body: 'Okay!'
+        body: 'Okay, triggered <the URL to the workflow handle-pr-comment.yml run on main with inputs {"pr-comment-url":"https://github.com/gitgitgadget/git/pull/1886743660"}>!'
     })
-    expect(mockRequest.write).toHaveBeenCalledTimes(1)
-    expect(JSON.parse(mockRequest.write.mock.calls[0][0])).toEqual({
-        definition: {
-            id: 3
-        },
-        sourceBranch: 'refs/pull/1886743660/head',
-        parameters: '{"pr.comment.id":27988538471837300}'
-    })
-    expect(mockRequest.end).toHaveBeenCalledTimes(1)
+    expect(mockRequest.write).not.toHaveBeenCalled()
+    expect(mockRequest.end).not.toHaveBeenCalled()
 })
 
 testIssueComment('/verify-repository', 'nope', (context) => {
