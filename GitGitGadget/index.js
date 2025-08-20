@@ -43,6 +43,17 @@ module.exports = async (context, req) => {
                 status: 403,
                 body: 'Refusing to work on a repository other than gitgitgadget/git or git/git'
             };
+        } else if (eventType === 'pull_request') {
+            if (req.body.action !== 'opened' && req.body.action !== 'synchronize') {
+                context.res = {
+                    body: `Ignoring pull request action: ${req.body.action}`,
+                };
+            } else {
+                const run = await triggerWorkflowDispatch(...a, 'handle-pr-push.yml', 'main', {
+                    'pr-url': req.body.pull_request.html_url
+                })
+                context.res = { body: `Okay, triggered ${run.html_url}!` };
+            }
         } else if ((new Set(['check_run', 'status']).has(eventType))) {
             context.res = {
                 body: `Ignored event type: ${eventType}`,

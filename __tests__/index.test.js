@@ -276,3 +276,33 @@ testWebhookPayload('react to `lore-1` being pushed to https://github.com/gitgitg
         undefined
     ])
 })
+testWebhookPayload('react to PR push', 'pull_request', {
+    action: 'synchronize',
+    pull_request: {
+        html_url: 'https://github.com/gitgitgadget/git/pull/1956',
+    },
+    repository: {
+        full_name: 'gitgitgadget/git',
+        owner: {
+            login: 'gitgitgadget'
+        }
+    }
+}, (context) => {
+    expect(context.res).toEqual({
+        body: [
+            'Okay, triggered <the URL to the workflow handle-pr-push.yml run on main with inputs',
+            '{"pr-url":"https://github.com/gitgitgadget/git/pull/1956"}>!'
+        ].join(' ')
+    })
+    expect(mockTriggerWorkflowDispatch).toHaveBeenCalledTimes(1)
+    expect(mockTriggerWorkflowDispatch.mock.calls[0]).toEqual([
+        context,
+        undefined,
+        'gitgitgadget-workflows',
+        'gitgitgadget-workflows',
+        'handle-pr-push.yml',
+        'main', {
+            'pr-url': 'https://github.com/gitgitgadget/git/pull/1956',
+        }
+    ])
+})
