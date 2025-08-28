@@ -10,9 +10,7 @@
  */
 const { validateGitHubWebHook } = require('./validate-github-webhook');
 
-const { triggerAzurePipeline } = require('./trigger-azure-pipeline');
-
-const { triggerWorkflowDispatch } = require('./trigger-workflow-dispatch')
+const { triggerWorkflowDispatch, listWorkflowRuns } = require('./trigger-workflow-dispatch')
 
 module.exports = async (context, req) => {
     try {
@@ -29,56 +27,74 @@ module.exports = async (context, req) => {
 
     try {
         /*
-         * The Azure Pipeline needs to be installed as a PR build on _the very
-         * same_ repository that triggers this function. That is, when the
-         * Azure Function triggers GitGitGadget for gitgitgadget/git, it needs
-         * to know that pipelineId 3 is installed on gitgitgadget/git, and
-         * trigger that very pipeline.
-         *
-         * So whenever we extend GitGitGadget to handle another repository, we
-         * will have to add an Azure Pipeline, install it on that repository as
-         * a PR build, and add the information here.
+         * For various reasons, the GitGitGadget GitHub App can be installed
+         * on any random repository. However, GitGitGadget only wants to support
+         * the `gitgitgadget/git` and the `git/git` repository (with the
+         * `dscho/git` one thrown in for debugging purposes).
          */
-        const pipelines = {
-            'dscho': 12,
-            'git': 13,
-            'gitgitgadget': 3,
-        };
+        const orgs = ['gitgitgadget', 'git', 'dscho']
+        const a = [context, undefined, 'gitgitgadget-workflows', 'gitgitgadget-workflows']
 
         const eventType = context.req.headers['x-github-event'];
         context.log(`Got eventType: ${eventType}`);
         const repositoryOwner = req.body.repository.owner.login;
-        if (pipelines[repositoryOwner] === undefined) {
+        if (!orgs.includes(repositoryOwner)) {
             context.res = {
                 status: 403,
                 body: 'Refusing to work on a repository other than gitgitgadget/git or git/git'
             };
+        } else if (eventType === 'pull_request') {
+            if (req.body.action !== 'opened' && req.body.action !== 'synchronize') {
+                context.res = {
+                    body: `Ignoring pull request action: ${req.body.action}`,
+                };
+            } else {
+                const run = await triggerWorkflowDispatch(...a, 'handle-pr-push.yml', 'main', {
+                    'pr-url': req.body.pull_request.html_url
+                })
+                context.res = { body: `Okay, triggered ${run.html_url}!` };
+            }
         } else if ((new Set(['check_run', 'status']).has(eventType))) {
             context.res = {
                 body: `Ignored event type: ${eventType}`,
             };
         } else if (eventType === 'push') {
-            if (req.body.repository.full_name !== 'git/git') {
+            if (req.body.repository.full_name ==='gitgitgadget/git-mailing-list-mirror') {
+                context.res = { body: `push(${req.body.ref} in ${req.body.repository.full_name}): ` }
+                if (req.body.ref === 'refs/heads/lore-1') {
+                    const queued = await listWorkflowRuns(...a, 'handle-new-mails.yml', 'queued')
+                    if (queued.length) {
+                        context.res.body += [
+                            `skip triggering handle-new-emails, ${queued} already queued:`,
+                            queued.map(e => `- ${e.html_url}`)
+                        ].join('\n')
+                    } else {
+                        const run = await triggerWorkflowDispatch(...a, 'handle-new-mails.yml', 'main')
+                        context.res.body += `triggered ${run.html_url}`
+                    }
+                } else context.res.body += `Ignoring non-default branches`
+            } else if (req.body.repository.full_name !== 'git/git') {
                 context.res = { body: `Ignoring pushes to ${req.body.repository.full_name}` }
             } else {
                 const run = await triggerWorkflowDispatch(
-                    context,
-                    undefined,
-                    'gitgitgadget-workflows',
-                    'gitgitgadget-workflows',
+                    ...a,
                     'sync-ref.yml',
                     'main', {
                         ref: req.body.ref
                     }
                 )
-                context.res = { body: `push(${req.body.ref}): triggered ${run.html_url}` }
+                const extra = []
+                if (req.body.ref === 'refs/heads/seen') {
+                    for (const workflow of ['update-prs.yml', 'update-mail-to-commit-notes.yml']) {
+                        if ((await listWorkflowRuns(...a, workflow, 'main', 'queued')).length === 0) {
+                            const run = await triggerWorkflowDispatch(...a, workflow, 'main')
+                            extra.push(` and ${run.html_url}`)
+                        }
+                    }
+                }
+                context.res = { body: `push(${req.body.ref}): triggered ${run.html_url}${extra.join('')}` }
             }
         } else if (eventType === 'issue_comment') {
-            const triggerToken = process.env['GITGITGADGET_TRIGGER_TOKEN'];
-            if (!triggerToken) {
-                throw new Error('No configured trigger token');
-            }
-
             const comment = req.body.comment;
             const prNumber = req.body.issue.number;
             if (!comment || !comment.id || !prNumber) {
@@ -100,19 +116,13 @@ module.exports = async (context, req) => {
                 return;
             }
 
-            const sourceBranch = `refs/pull/${prNumber}/head`;
-            const parameters = {
-                'pr.comment.id': comment.id,
-            };
-            const pipelineId = pipelines[repositoryOwner];
-            if (!pipelineId || pipelineId < 1)
-                throw new Error(`No pipeline set up for org ${repositoryOwner}`);
-            context.log(`Queuing with branch ${sourceBranch} and parameters ${JSON.stringify(parameters)}`);
-            await triggerAzurePipeline(triggerToken, 'gitgitgadget', 'git', pipelineId, sourceBranch, parameters);
+            const run = await triggerWorkflowDispatch(...a, 'handle-pr-comment.yml', 'main', {
+                'pr-comment-url': comment.html_url
+            })
 
             context.res = {
                 // status: 200, /* Defaults to 200 */
-                body: 'Okay!',
+                body: `Okay, triggered ${run.html_url}!`,
             };
         } else {
             context.log(`Unhandled request:\n${JSON.stringify(req, null, 4)}`);
