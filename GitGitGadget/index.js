@@ -131,10 +131,10 @@ module.exports = async (context, req) => {
             };
         }
     } catch (e) {
-        context.log('Caught exception ' + e);
+        context.log('Caught exception ', e);
         context.res = {
             status: 500,
-            body: 'Caught an error: ' + e,
+            body: `Caught an error: ${e.message || JSON.stringify(e, null, 2)}`,
         };
     }
 
