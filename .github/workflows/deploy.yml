@@ -15,11 +15,39 @@ permissions:
 
 jobs:
   deploy:
-    if: github.event.repository.fork == false
+    if: github.event.repository.fork == false || vars.DEPLOY_WITH_WORKFLOWS != ''
     environment: deploy-to-azure
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: parse DEPLOY_WITH_WORKFLOWS
+        if: vars.DEPLOY_WITH_WORKFLOWS != '' && contains(vars.DEPLOY_WITH_WORKFLOWS, '/')
+        id: parsed
+        env:
+          WORKFLOWS_REPO: '${{ vars.DEPLOY_WITH_WORKFLOWS }}'
+        run: |
+          echo "owner=${WORKFLOWS_REPO%%/*}" >>$GITHUB_OUTPUT &&
+          echo "name=${WORKFLOWS_REPO#*/}" >>$GITHUB_OUTPUT
+      - name: retrieve `vars.CONFIG` from workflows repo
+        if: vars.DEPLOY_WITH_WORKFLOWS != ''
+        env:
+          WORKFLOWS_REPO: '${{ vars.DEPLOY_WITH_WORKFLOWS }}'
+          GH_TOKEN: ${{ steps.workflows-repo-token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: |
+          set -x &&
+          if ! curl -fLO https://github.com/"$WORKFLOWS_REPO"/raw/config/gitgitgadget-config.json
+          then
+            echo "::error::Could not retrieve 'gitgitgadget-config.json' from the 'config' branch of $WORKFLOWS_REPO"
+            exit 1
+          fi &&
+          jq '. + {
+            "workflowsRepo": {
+              "owner": "${{ steps.parsed.outputs.owner }}",
+              "name": "${{ steps.parsed.outputs.name }}"
+            }
+          }' <gitgitgadget-config.json >GitGitGadget/gitgitgadget-config.json &&
+          echo "Using the following configuration:" &&
+          cat GitGitGadget/gitgitgadget-config.json
       - name: 'Login via Azure CLI'
         uses: azure/login@v2
         with:
