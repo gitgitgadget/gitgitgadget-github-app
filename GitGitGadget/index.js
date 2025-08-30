@@ -26,14 +26,10 @@ module.exports = async (context, req) => {
     }
 
     try {
-        /*
-         * For various reasons, the GitGitGadget GitHub App can be installed
-         * on any random repository. However, GitGitGadget only wants to support
-         * the `gitgitgadget/git` and the `git/git` repository (with the
-         * `dscho/git` one thrown in for debugging purposes).
-         */
-        const orgs = ['gitgitgadget', 'git', 'dscho']
-        const a = [context, undefined, 'gitgitgadget-workflows', 'gitgitgadget-workflows']
+        const { readFileSync } = require('fs')
+        const config = JSON.parse(readFileSync(`${__dirname}/gitgitgadget-config.json`))
+        const orgs = config.repo.owners
+        const a = [context, undefined, config.workflowsRepo.owner, config.workflowsRepo.name]
 
         const eventType = context.req.headers['x-github-event'];
         context.log(`Got eventType: ${eventType}`);
@@ -41,7 +37,7 @@ module.exports = async (context, req) => {
         if (!orgs.includes(repositoryOwner)) {
             context.res = {
                 status: 403,
-                body: 'Refusing to work on a repository other than gitgitgadget/git or git/git'
+                body: `Refusing to work on any repository outside of ${orgs.join(', ')}`,
             };
         } else if (eventType === 'pull_request') {
             if (req.body.action !== 'opened' && req.body.action !== 'synchronize') {
@@ -59,9 +55,9 @@ module.exports = async (context, req) => {
                 body: `Ignored event type: ${eventType}`,
             };
         } else if (eventType === 'push') {
-            if (req.body.repository.full_name ==='gitgitgadget/git-mailing-list-mirror') {
+            if (config.mailrepo.mirrorURL === `https://github.com/${req.body.repository.full_name}`) {
                 context.res = { body: `push(${req.body.ref} in ${req.body.repository.full_name}): ` }
-                if (req.body.ref === 'refs/heads/lore-1') {
+                if (req.body.ref === config.mailrepo.mirrorRef) {
                     const queued = await listWorkflowRuns(...a, 'handle-new-mails.yml', 'queued')
                     if (queued.length) {
                         context.res.body += [
@@ -73,7 +69,7 @@ module.exports = async (context, req) => {
                         context.res.body += `triggered ${run.html_url}`
                     }
                 } else context.res.body += `Ignoring non-default branches`
-            } else if (req.body.repository.full_name !== 'git/git') {
+            } else if (req.body.repository.full_name !== `${config.repo.baseOwner}/${config.repo.name}`) {
                 context.res = { body: `Ignoring pushes to ${req.body.repository.full_name}` }
             } else {
                 const run = await triggerWorkflowDispatch(
@@ -84,7 +80,7 @@ module.exports = async (context, req) => {
                     }
                 )
                 const extra = []
-                if (req.body.ref === 'refs/heads/seen') {
+                if (config.repo.branches.map((name) => `refs/heads/${name}`).includes(req.body.ref)) {
                     for (const workflow of ['update-prs.yml', 'update-mail-to-commit-notes.yml']) {
                         if ((await listWorkflowRuns(...a, workflow, 'main', 'queued')).length === 0) {
                             const run = await triggerWorkflowDispatch(...a, workflow, 'main')
@@ -103,7 +99,7 @@ module.exports = async (context, req) => {
             }
 
             /* GitGitGadget works on dscho/git only for testing */
-            if (repositoryOwner === 'dscho' && comment.user.login !== 'dscho') {
+            if (repositoryOwner === config.repo.testOwner && comment.user.login !== config.repo.testOwner) {
                 throw new Error(`Ignoring comment from ${comment.user.login}`);
             }
 
