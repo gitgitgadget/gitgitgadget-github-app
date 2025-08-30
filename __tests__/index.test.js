@@ -49,7 +49,7 @@ test('reject requests other than webhook payloads', async () => {
             body: `Not a valid GitHub webhook: Error: ${message}`,
             status: 403
         })
-        expect(context.done).toHaveBeenCalledTimes(1)
+        expect(context.done).not.toHaveBeenCalled()
     }
 
     await expectInvalidWebhook('Unexpected content type: text/plain')
@@ -142,7 +142,7 @@ const testIssueComment = (comment, repoOwner, fn) => {
         try {
             expect(await index(context, context.req)).toBeUndefined()
             await fn(context)
-            expect(context.done).toHaveBeenCalledTimes(1)
+            expect(context.done).not.toHaveBeenCalled()
         } catch (e) {
             context.log.mock.calls.forEach(e => console.log(e[0]))
             throw e;
@@ -151,7 +151,7 @@ const testIssueComment = (comment, repoOwner, fn) => {
 }
 
 testIssueComment('/test', async (context) => {
-    expect(context.done).toHaveBeenCalledTimes(1)
+    expect(context.done).not.toHaveBeenCalled()
     expect(context.res).toEqual({
         body: 'Okay, triggered <the URL to the workflow handle-pr-comment.yml run on main with inputs {"pr-comment-url":"https://github.com/gitgitgadget/git/pull/1886743660"}>!'
     })
@@ -160,7 +160,7 @@ testIssueComment('/test', async (context) => {
 })
 
 testIssueComment('/verify-repository', 'nope', (context) => {
-    expect(context.done).toHaveBeenCalledTimes(1)
+    expect(context.done).not.toHaveBeenCalled()
     expect(context.res).toEqual({
         body: 'Refusing to work on a repository other than gitgitgadget/git or git/git',
         'status': 403,
@@ -178,7 +178,7 @@ const testWebhookPayload = (testLabel, gitHubEvent, payload, fn) => {
         try {
             expect(await index(context, context.req)).toBeUndefined()
             await fn(context)
-            expect(context.done).toHaveBeenCalledTimes(1)
+            expect(context.done).not.toHaveBeenCalled()
         } catch (e) {
             context.log.mock.calls.forEach(e => console.log(e[0]))
             throw e;
