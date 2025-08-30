@@ -45,13 +45,13 @@ Finally, [run the Function locally](https://learn.microsoft.com/en-us/azure/azur
 
 You can also run/debug it via VS Code, there is a default configuration called "Attach to Node Functions".
 
-## How this GitHub App was set up
+## How to set up this GitHub App
 
 This process looks a bit complex, the main reason for that being that three things have to be set up essentially simultaneously: an Azure Function, a GitHub repository and a GitHub App.
 
 ### The Azure Function
 
-First of all, a new [Azure Function](https://portal.azure.com/#blade/HubsExtension/BrowseResourceBlade/resourceType/Microsoft.Web%2Fsites/kind/functionapp) was created. A Linux one was preferred, for cost and performance reasons. Deployment with GitHub was _not_ yet configured.
+First of all, a new [Azure Function](https://portal.azure.com/#blade/HubsExtension/BrowseResourceBlade/resourceType/Microsoft.Web%2Fsites/kind/functionapp) needs to be created. A Linux one is preferred, with a regular Consumption plan, for [cost](https://azure.microsoft.com/en-us/pricing/details/functions/) and performance reasons. Deployment with GitHub should _not_ yet be configured.
 
 #### Obtaining the Azure credentials
 
@@ -77,26 +77,68 @@ The result is a "managed identity", essentially a tightly-scoped credential that
 
 #### Some environment variables
 
-A few environment variables will have to be configured for use with the Azure Function. This can be done on the "Configuration" tab, which is in the "Settings" group.
+A few environment variables need to be configured for use with the Azure Function. This can be done on the "Configuration" tab, which is in the "Settings" group.
 
-Concretely, the environment variables `GITHUB_WEBHOOK_SECRET` and `GITGITGADGET_TRIGGER_TOKEN` (a Personal Access Token to trigger the Azure Pipelines) need to be set. For the first, a generated random string was used. The second one was [created](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=Windows#create-a-pat) scoped to the Azure DevOps project `gitgitgadget` with the Build (read & execute) permissions.
+Concretely, the environment variables `GITHUB_WEBHOOK_SECRET` needs to be set, any generated random string can be used as its value (and the same value needs to be used when eventually registering the actual GitHub App).
 
-Also, the `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` variables are needed in order to trigger GitHub workflow runs. These were obtained as part of registering the GitHub App.
+Also, the `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` variables are needed in order to trigger GitHub workflow runs. These are obtained as part of registering the GitHub App (see below).
 
 ### The repository
 
 Create a fork of https://github.com/gitgitgadget/gitgitgadget-github-app. Configure the Azure Managed Identity via Actions secrets, under the keys `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`. Also, the `AZURE_FUNCTION_NAME` secret needs to be defined (its value is the name of the Azure Function).
 
-This repository was initialized locally by forking https://github.com/gitgitgadget/gitgitgadget and separating out the Azure Functions part of it. Then, the test suite was developed and the GitHub workflows were adapted from https://github.com/git-for-windows/gfw-helper-github-app. After that, the `origin` remote was set to the newly registered repository on GitHub.
+Also configure the repository _variable_ `DEPLOY_WITH_WORKFLOWS`; Its value must correspond to the fork of https://github.com/gitgitgadget/gitgitgadget-workflows, in the form `<org>/gitgitgadget-workflows`. Note that that fork _must_ have a `config` branch that contains a valid project configuration in its `gitgitgadget-config.json` file.
 
-As a last step, the repository was pushed, triggering the deployment to the Azure Function.
+As a last step, on the Actions tab, the `Deploy to Azure` workflow needs to be triggered manually, which deploys the Azure Function.
 
 ### The GitHub App
 
-Finally, the existing GitHub App's webhook URL was redirected to the new one. If there had not been an existing GitHub App, [a new GitHub App would have been registered](https://github.com/settings/apps/new) with https://github.com/gitgitgadget as homepage URL.
+Now it is finally time to [register a new GitHub App](https://github.com/settings/apps/new) with https://github.com/<org>> as homepage URL.
 
-As Webhook URL, the URL of the Azure Function was used, which can be copied in the "Functions" tab of the Azure Function. It looks similar to this: https://my-github-app.azurewebsites.net/api/MyGitHubApp
+As Webhook URL, use the URL of the Azure Function, which should look like this: https://<azure-function-name>.azurewebsites.net/api/GitGitGadget
 
 The value stored in the Azure Function as `GITHUB_WEBHOOK_SECRET` was used as Webhook secret.
 
-The GitGitGadget GitHub app requires the following permissions: Read access to metadata, and Read and write access to checks, code, commit statuses, issues, pull requests, and workflows.
+The GitGitGadget GitHub app requires the following permissions: Read access to metadata, Read and write access to Variables, Actions, Checks, Commit statuses, Contents, Issues, Pull requests, and Workflows. It needs the following webhook events to be enabled: Check run, Commit comment, Issue comment, Pull request, Pull request review, Pull request review comment, Push, Repository, and Status.
+
+Once the GitHub App is successfully registered (and unfortunately only then), the private key can be generated via clicking the `Generate a private key` button in the "Private keys" section toward the bottom. This will automatically download a file; The contents of that file, with newlines replaced by `\n`, need to be configured as `GITHUB_APP_PRIVATE_KEY` environment variable in your Azure Function's `Settings>Environment variables` tab, and `GITHUB_APP_ID` needs to be set, too (it can be seen on the GitHub App's page at the top, labeled as "App ID").
+
+The app needs to be installed on the fork of the `gitgitgadget-workflows` repository, and the app ID and private key should also be stored as Actions secrets in the fork of the `gitgitgadget-github-app` repository and it should be re-deployed so that it can pick up those new bits and pieces.
+
+#### Using `register-github-app-cli`
+
+A convenient alternative to clicky-clicky in the GitHub UI to register the GitHub is the convenient [`npx register-github-app-cli` command](https://github.com/gr2m/register-github-app-cli): Use it with `--org <owning-organization>` and a variation of this manifest:
+
+```yml
+name: <name>
+url: https://github.com/apps/<name>
+hook_attributes:
+  url: https://<function-app-name>.azurewebsites.net/api/GitGitGadget
+public: false
+default_permissions:
+  actions: write
+  checks: write
+  commit_statuses: write
+  contents: write
+  issues: write
+  metadata: read
+  pull_requests: write
+  variables: read
+  workflows: write
+default_events:
+  - check_run
+  - commit_comment
+  - issue_comment
+  - pull_request
+  - pull_request_review
+  - pull_request_review_comment
+  - push
+  - repository
+  - status
+```
+
+### A read-only GitHub App
+
+In complex setups, like the one for the Git project, there is more than one repository in which users open Pull Requests that then get forwarded by GitGitGadget: In addition to the "pr-repo", there can be an "upstream-repo" that is owned by the upstream project and should not allow GitGitGadget to write to it.
+
+To this end, a second GitHub App can be registered, one that lacks all permissions except Read/write on `issues` & `pull_requests` (to write PR comments) and `checks` (to mirror the workflow runs to the PRs). This will need to be configured on the `gitgitgadget-workflows` fork as `GITGITGADGET_READONLY_GITHUB_APP_ID` and `GITGITGADGET_READONLY_GITHUB_APP_PRIVATE_KEY` secrets.
