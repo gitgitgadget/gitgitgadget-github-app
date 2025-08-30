@@ -15,11 +15,50 @@ permissions:
 
 jobs:
   deploy:
-    if: github.event.repository.fork == false
+    if: github.event.repository.fork == false || vars.DEPLOY_WITH_WORKFLOWS != ''
     environment: deploy-to-azure
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: parse DEPLOY_WITH_WORKFLOWS
+        if: vars.DEPLOY_WITH_WORKFLOWS != '' && contains(vars.DEPLOY_WITH_WORKFLOWS, '/')
+        id: parsed
+        env:
+          WORKFLOWS_REPO: '${{ vars.DEPLOY_WITH_WORKFLOWS }}'
+        run: |
+          echo "owner=${WORKFLOWS_REPO%%/*}" >>$GITHUB_OUTPUT &&
+          echo "name=${WORKFLOWS_REPO#*/}" >>$GITHUB_OUTPUT
+      - uses: actions/create-github-app-token@v1
+        if: steps.parsed.outputs.owner != '' && env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != ''
+        id: workflows-repo-token
+        env:
+          GITHUB_APP_ID: ${{ secrets.GITGITGADGET_GITHUB_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITGITGADGET_GITHUB_APP_PRIVATE_KEY }}
+        with:
+          app-id: ${{ secrets.GITGITGADGET_GITHUB_APP_ID }}
+          private-key: ${{ secrets.GITGITGADGET_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ steps.parsed.outputs.owner }}
+          repositories: ${{ steps.parsed.outputs.name }}
+      - name: retrieve `vars.CONFIG` from workflows repo
+        if: vars.DEPLOY_WITH_WORKFLOWS != ''
+        env:
+          WORKFLOWS_REPO: '${{ vars.DEPLOY_WITH_WORKFLOWS }}'
+          GH_TOKEN: ${{ steps.workflows-repo-token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: |
+          set -x &&
+          if ! CONFIG="$(gh variable get CONFIG --repo "$WORKFLOWS_REPO")"
+          then
+            echo "::warning::Could not retrieve variable CONFIG from $WORKFLOWS_REPO (please configure GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY)"
+            CONFIG="$(cat GitGitGadget/gitgitgadget-config.json)"
+          fi &&
+          jq '. + {
+            "workflowsRepo": {
+              "owner": "${{ steps.parsed.outputs.owner }}",
+              "name": "${{ steps.parsed.outputs.name }}"
+            }
+          }' <<<"$CONFIG" >GitGitGadget/gitgitgadget-config.json &&
+          echo "Using the following configuration:" &&
+          cat GitGitGadget/gitgitgadget-config.json
       - name: 'Login via Azure CLI'
         uses: azure/login@v2
         with:
