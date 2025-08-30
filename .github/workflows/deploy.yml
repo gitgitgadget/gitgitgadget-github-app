@@ -6,6 +6,7 @@ on:
     branches:
       - main
     paths:
+      - '.funcignore'
       - '.github/workflows/deploy.yml'
       - 'GitGitGadget/**'
 
