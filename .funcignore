@@ -2,3 +2,6 @@
 /*.md
 /host.json
 /local.settings.json
+/package.json
+/package-lock.json
+/jest.config.js
