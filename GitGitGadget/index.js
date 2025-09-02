@@ -21,7 +21,6 @@ module.exports = async (context, req) => {
             status: 403,
             body: 'Not a valid GitHub webhook: ' + e,
         };
-        context.done();
         return;
     }
 
@@ -112,7 +111,6 @@ module.exports = async (context, req) => {
                 context.res = {
                     body: `Not a command: '${comment.body}'`,
                 };
-                context.done();
                 return;
             }
 
@@ -131,12 +129,10 @@ module.exports = async (context, req) => {
             };
         }
     } catch (e) {
-        context.log('Caught exception ' + e);
+        context.log('Caught exception ', e);
         context.res = {
             status: 500,
-            body: 'Caught an error: ' + e,
+            body: `Caught an error: ${e.message || JSON.stringify(e, null, 2)}`,
         };
     }
-
-    context.done();
 };
