@@ -162,7 +162,7 @@ testIssueComment('/test', async (context) => {
 testIssueComment('/verify-repository', 'nope', (context) => {
     expect(context.done).not.toHaveBeenCalled()
     expect(context.res).toEqual({
-        body: 'Refusing to work on a repository other than gitgitgadget/git or git/git',
+        body: 'Refusing to work on any repository outside of gitgitgadget, git, dscho',
         'status': 403,
     })
     expect(mockRequest.write).not.toHaveBeenCalled()
