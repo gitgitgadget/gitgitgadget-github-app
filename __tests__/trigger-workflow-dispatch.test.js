@@ -7,7 +7,7 @@ const mockHTTPSRequest = jest.fn(async (_context, _hostname, method, requestPath
         }
     }
     if (method === 'GET' && requestPath === '/user') return { login: 'the actor' }
-    if (method === 'GET' && requestPath === '/repos/hello/world/actions/runs?actor=the actor&event=workflow_dispatch&created=>2023-01-23T01:23:45.000Z') {
+    if (method === 'GET' && requestPath === '/repos/hello/world/actions/runs?actor=the actor&event=workflow_dispatch&created>=2023-01-23T01:23:45.000Z') {
         return {
             workflow_runs: [
                 { path: 'not this one.yml' },
