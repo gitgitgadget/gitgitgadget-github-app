@@ -44,14 +44,17 @@ const triggerWorkflowDispatch = async (context, token, owner, repo, workflow_id,
         token = await getInstallationAccessToken(context, installationID)
     }
 
-    const { headers: { date } } = await gitHubAPIRequest(
+    const response = await gitHubAPIRequest(
         context,
         token,
         'POST',
         `/repos/${owner}/${repo}/actions/workflows/${workflow_id}/dispatches`,
-        { ref, inputs }
+        { ref, inputs, return_run_details: true }
     )
 
+    if (response.workflow_run_id) return response
+
+    const date = response.headers?.date || new Date().toISOString()
     // Avoid missing the run if its timestamp is slightly earlier than the response.
     const after = new Date(Date.parse(date) - 5000).toISOString()
     const runs = await waitForWorkflowRun(context, token, owner, repo, workflow_id, after)
