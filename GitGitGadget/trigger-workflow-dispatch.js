@@ -52,7 +52,9 @@ const triggerWorkflowDispatch = async (context, token, owner, repo, workflow_id,
         { ref, inputs }
     )
 
-    const runs = await waitForWorkflowRun(context, token, owner, repo, workflow_id, new Date(date).toISOString())
+    // Avoid missing the run if its timestamp is slightly earlier than the response.
+    const after = new Date(Date.parse(date) - 5000).toISOString()
+    const runs = await waitForWorkflowRun(context, token, owner, repo, workflow_id, after)
     return runs[0]
 }
 
