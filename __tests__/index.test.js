@@ -159,6 +159,15 @@ testIssueComment('/test', async (context) => {
     expect(mockRequest.end).not.toHaveBeenCalled()
 })
 
+testIssueComment('/reply <mail@example.com>\nThanks', async (context) => {
+    expect(context.done).not.toHaveBeenCalled()
+    expect(context.res).toEqual({
+        body: 'Okay, triggered <the URL to the workflow handle-pr-comment.yml run on main with inputs {"pr-comment-url":"https://github.com/gitgitgadget/git/pull/1886743660"}>!'
+    })
+    expect(mockRequest.write).not.toHaveBeenCalled()
+    expect(mockRequest.end).not.toHaveBeenCalled()
+})
+
 testIssueComment('/verify-repository', 'nope', (context) => {
     expect(context.done).not.toHaveBeenCalled()
     expect(context.res).toEqual({
