@@ -103,7 +103,7 @@ module.exports = async (context, req) => {
             }
 
             /* Only trigger the Pipeline for valid commands */
-            if (!comment.body || !comment.body.match(/^\/(submit|preview|allow|disallow|test|cc)\b/)) {
+            if (!comment.body || !comment.body.match(/^\/(submit|preview|allow|disallow|test|cc|reply)\b/)) {
                 context.res = {
                     body: `Not a command: '${comment.body}'`,
                 };
