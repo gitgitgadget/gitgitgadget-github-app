@@ -45,6 +45,12 @@ Finally, [run the Function locally](https://learn.microsoft.com/en-us/azure/azur
 
 You can also run/debug it via VS Code, there is a default configuration called "Attach to Node Functions".
 
+### Keeping the mailing-list mirror current
+
+The `sync-mailing-list-mirror` timer checks lore.kernel.org and the GitHub mirror once a minute. It dispatches the existing mirror workflow only when their advertised refs differ and skips the dispatch while another mirror run is queued or running. The workflow's five-minute schedule remains as a fallback.
+
+The timer uses the existing `AzureWebJobsStorage` setting for its schedule and lock. Delivery time still depends on lore.kernel.org publishing the message and Azure running the timer.
+
 ## How to set up this GitHub App
 
 This process looks a bit complex, the main reason for that being that three things have to be set up essentially simultaneously: an Azure Function, a GitHub repository and a GitHub App.
